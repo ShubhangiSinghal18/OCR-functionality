@@ -1,70 +1,124 @@
-# Getting Started with Create React App
+This is a react project which shows OCR functionality - 
+OCR - Optical Character Recognition
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Code Explanation:
+A React component that allows a user to upload an image of a bill, extract text using Optical Character Recognition (OCR) with Tesseract.js, and display specific details from the bill such as Bill Number, Due Date, Total Amount, and Payee Name.
 
-## Available Scripts
+Here's a line-by-line breakdown:
 
-In the project directory, you can run:
+Imports:
 
-### `npm start`
+import React, { useState, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
+import Tesseract from "tesseract.js";
+import { Box, Button, Typography } from "@mui/material";
+React is the main library for building the user interface.
+useState is a React hook used to manage the state of variables like image, extracted text, and bill details.
+useCallback is a hook that helps optimize performance by memoizing the drop callback function.
+useDropzone is a hook from the react-dropzone library that provides drag-and-drop file upload functionality.
+Tesseract.js is a JavaScript library for OCR (Optical Character Recognition) that converts text from an image into readable text.
+Box, Button, Typography are Material UI components used to build the UI (for layout, buttons, and text styling).
+State Variables:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+const [image, setImage] = useState(null);
+const [extractedText, setExtractedText] = useState("");
+const [billDetails, setBillDetails] = useState({});
+image: Stores the image URL of the uploaded file.
+extractedText: Stores the OCR text extracted from the image.
+billDetails: Stores the specific details extracted from the OCR text (e.g., Bill Number, Due Date, Amount).
+Dropzone Setup:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+const onDrop = useCallback((acceptedFiles) => {
+  const file = acceptedFiles[0];
+  if (file) {
+    setImage(URL.createObjectURL(file));
+    setExtractedText("");
+    setBillDetails({});
+  }
+}, []);
+This is a callback function triggered when a file is dropped into the dropzone.
+acceptedFiles: Contains the file(s) uploaded by the user.
+It only takes the first file, creates a URL for it, and updates the image state.
+The extractedText and billDetails states are reset to empty.
+Dropzone Component:
 
-### `npm test`
+const { getRootProps, getInputProps } = useDropzone({
+  onDrop,
+  accept: "image/*",
+  maxFiles: 1,
+});
+useDropzone provides props (getRootProps, getInputProps) that are used to configure the drag-and-drop functionality.
+It only accepts image files (image/*), and a maximum of one file.
+Text Extraction Function:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+const handleExtractText = async () => {
+  if (!image) return;
+  try {
+    const { data: { text } } = await Tesseract.recognize(image, "eng");
+    setExtractedText(text);
+    extractBillDetails(text);
+  } catch (error) {
+    console.error("Error extracting text:", error);
+  }
+};
+handleExtractText is an async function that uses Tesseract to extract text from the uploaded image.
+Tesseract.recognize takes the image URL and language ("eng" for English) and returns the extracted text.
+If successful, it updates the extractedText state and passes the extracted text to extractBillDetails to parse the specific details.
+Extract Bill Details:
 
-### `npm run build`
+const extractBillDetails = (text) => {
+  const billNumberMatch = text.match(/Bill Number[:\s]+(\d+)/i);
+  const dueDateMatch = text.match(/Due Date[:\s]+([\w-]+)/i);
+  const amountMatch = text.match(/Total Amount[:\s]+₹?([\d,.]+)/i);
+  const payeeMatch = text.match(/Payee Name[:\s]+(.+)/i);
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+  setBillDetails({
+    billNumber: billNumberMatch ? billNumberMatch[1] : "Not Found",
+    dueDate: dueDateMatch ? dueDateMatch[1] : "Not Found",
+    totalAmount: amountMatch ? ₹${amountMatch[1]} : "Not Found",
+    payeeName: payeeMatch ? payeeMatch[1] : "Not Found",
+  });
+};
+This function uses regular expressions to search for specific patterns in the OCR text.
+It looks for "Bill Number", "Due Date", "Total Amount", and "Payee Name" in the text.
+If a match is found, the corresponding bill details are extracted and saved in the billDetails state.
+UI Components:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Dropzone Area:
+<Box {...getRootProps()} sx={{ border: "2px dashed gray", padding: "20px", cursor: "pointer", marginBottom: 2 }}>
+  <input {...getInputProps()} />
+  <Typography>Drag & Drop a bill image here, or click to select one</Typography>
+</Box>
+This renders the drop area where users can either drag and drop an image or click to select one.
+Image Preview:
+{image && <img src={image} alt="Uploaded" style={{ maxWidth: "100%", height: "auto", marginBottom: "10px" }} />}
+If an image is uploaded, its preview is displayed.
+Extract Button:
+<Button variant="contained" color="primary" onClick={handleExtractText} disabled={!image}>
+  Extract Bill Details
+</Button>
+A button that triggers text extraction when clicked, but it’s disabled if no image is uploaded.
+Display Extracted Bill Details:
+{extractedText && (
+  <Box sx={{ textAlign: "left", marginTop: 2 }}>
+    <Typography variant="h6">Extracted Details:</Typography>
+    <Typography><strong>Bill Number:</strong> {billDetails.billNumber}</Typography>
+    <Typography><strong>Due Date:</strong> {billDetails.dueDate}</Typography>
+    <Typography><strong>Total Amount:</strong> {billDetails.totalAmount}</Typography>
+    <Typography><strong>Payee Name:</strong> {billDetails.payeeName}</Typography>
+  </Box>
+)}
+If any text has been extracted, the bill details (Bill Number, Due Date, Total Amount, Payee Name) are displayed.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Use Case in Project:
+Use Case: A banking application needs to help users extract details from bills (e.g., utility bills, credit card bills, etc.) to make payments automatically or track expenses.
+User Uploads Bill Image: The user uploads a bill (e.g., a utility bill).
+OCR Extraction: The system uses the provided code to extract the text from the bill image.
+Bill Details Extraction: The system parses key details from the extracted text, such as Bill Number, Due Date, Amount, and Payee Name.
+Data Display and Processing: The extracted data can be displayed to the user or used to automate payments or send reminders for due dates.
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Why Tesseract was the Best Option:
+Accuracy for Printed Text: Tesseract is one of the most accurate OCR libraries, especially for printed text on bills.
+Free and Open-Source: Tesseract is open-source, meaning it is cost-effective and can be freely used in commercial applications.
+JavaScript Support: Since the application is built in React, Tesseract.js provides an easy integration in the browser environment for client-side OCR tasks.
+Extensibility: Tesseract supports multiple languages and can be trained for specific fonts or text types, which is important for different kinds of bills.
